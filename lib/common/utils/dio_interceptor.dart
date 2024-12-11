@@ -69,12 +69,17 @@ class DioInterceptor extends Interceptor {
       if (isConsoleLogAllowed) {
         developer.log(logError);
       }
-      await saveResponse(err.response!);
-      await finishActivity(
-        err.response!,
-        err.response!.requestOptions.uri.toString(),
-        err.response!.data.toString(),
-      );
+      if (err != null && err.response != null) {
+        await saveResponse(err.response!);
+        await finishActivity(
+          err.response!,
+          err.response!.requestOptions.uri.toString(),
+          err.response!.data.toString(),
+        );
+      } else {
+        var payload = HttpResponse();
+        await networkInspector!.writeHttpResponseLog(payload);
+      }
     }
 
     var errorResponse = '\n[Error Response]'
