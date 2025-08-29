@@ -64,15 +64,17 @@ class ActivityDetailPage extends StatelessWidget {
   }
 
   Widget buildBody(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      initialIndex: 0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          bodyHeader(context),
-          bodyContent(context),
-        ],
+    return SafeArea(
+      child: DefaultTabController(
+        length: 3,
+        initialIndex: 0,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bodyHeader(context),
+            bodyContent(context),
+          ],
+        ),
       ),
     );
   }
@@ -87,10 +89,9 @@ class ActivityDetailPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: (Theme.of(context).brightness == Brightness.dark)
                 ? Theme.of(context).colorScheme.surface
-                : Theme.of(context)
-                    .colorScheme
-                    .primaryContainer
-                    .withOpacity(0.25),
+                : Theme.of(context).colorScheme.primaryContainer.withAlpha(
+                      (0.25 * 255).round(),
+                    ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
