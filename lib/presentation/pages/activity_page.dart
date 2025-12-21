@@ -9,6 +9,7 @@ import '../../common/utils/date_time_util.dart';
 import '../../common/widgets/bottom_sheet.dart';
 import '../../const/network_inspector_value.dart';
 import '../../domain/entities/http_activity.dart';
+import '../../domain/entities/http_request.dart';
 import '../controllers/activity_provider.dart';
 import '../widgets/container_label.dart';
 import '../widgets/filter_bottom_sheet_content.dart';
@@ -149,93 +150,113 @@ class ActivityPage extends StatelessWidget {
   }
 
   Widget activityTile(
-    BuildContext context,
-    HttpActivity activity,
-    int index,
-  ) {
-    return ListTile(
+      BuildContext context,
+      HttpActivity activity,
+      int index,
+      ) {
+    final theme = Theme.of(context);
+
+    return InkWell(
       onTap: () {
-        var provider = context.read<ActivityProvider>();
-        provider.goToDetailActivity(activity);
+        context.read<ActivityProvider>().goToDetailActivity(activity);
       },
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            flex: 1,
-            child: Text(
-              '${activity.request?.method} '
-              '${activity.request?.path ?? '-'}',
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyLarge,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// LEFT COLUMN
+            SizedBox(
+              width: 72,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// METHOD
+                  Text(
+                    activity.request?.method ?? '-',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  /// STATUS CODE
+                  ContainerLabel(
+                    text: '${activity.response?.responseStatusCode ?? 'N/A'}',
+                    color: NetworkInspectorValue.containerColor(
+                      activity.response?.responseStatusCode ?? 0,
+                    ),
+                    textColor: Colors.white,
+                  ),
+                  const SizedBox(height: 6),
+
+                  /// TIME
+                  Text(
+                    _dateTimeUtil.milliSecondDifference(
+                      activity.request?.createdAt,
+                      activity.response?.createdAt,
+                    ),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
-          ),
-          ContainerLabel(
-            text: '${activity.response?.responseStatusCode ?? 'N/A'}',
-            color: NetworkInspectorValue.containerColor(
-              activity.response?.responseStatusCode ?? 0,
+
+            const SizedBox(width: 12),
+
+            /// RIGHT COLUMN
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// DATE | SIZE
+                  Text(
+                    '${activity.request?.createdAt?.convertToYmdHms ?? '-'}'
+                        ' | '
+                        '${_byteUtil.totalTransferSize(
+                      activity.request?.requestSize,
+                      activity.response?.responseSize,
+                      false,
+                    )}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  /// FULL URL
+                  Text(
+                    buildFullUrl(activity.request),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
-            textColor: Colors.white,
-          ),
-        ],
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Visibility(
-                visible: activity.request?.baseUrl?.isSecure ?? false,
-                replacement: const Icon(
-                  Icons.lock_open,
-                  size: 18,
-                  color: Colors.grey,
-                ),
-                child: const Icon(
-                  Icons.lock,
-                  size: 18,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  activity.request?.baseUrl ?? '-',
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              )
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                activity.request?.createdAt?.convertToYmdHms ?? '-',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                _byteUtil.totalTransferSize(
-                  activity.request?.requestSize,
-                  activity.response?.responseSize,
-                  false,
-                ),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                _dateTimeUtil.milliSecondDifference(
-                  activity.request?.createdAt,
-                  activity.response?.createdAt,
-                ),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  String buildFullUrl(HttpRequest? request) {
+    if (request == null) return '-';
+
+    final buffer = StringBuffer();
+
+    if (request.baseUrl != null) {
+      buffer.write(request.baseUrl);
+    }
+
+    if (request.path != null) {
+      buffer.write(request.path);
+    }
+
+    if (request.params != null && request.params!.isNotEmpty) {
+      buffer.write('?${request.params}');
+    }
+
+    return buffer.toString();
   }
 
   void onTapFilterIcon(BuildContext context) {

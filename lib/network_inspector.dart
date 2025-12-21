@@ -84,6 +84,25 @@ export 'presentation/pages/activity_page.dart';
 /// 3. Call `NetworkInspector.enable()` to activate logging + floating UI
 /// 4. Tap floating circle to view logged HTTP activities
 /// 5. Call `NetworkInspector.disable()` or `hideFloatingCircle()` when done
+/// Environment configuration model
+class EnvironmentConfig {
+  final String name;
+  final String baseUrl;
+  final Color color;
+  final Map<String, String>? headers;
+
+  const EnvironmentConfig({
+    required this.name,
+    required this.baseUrl,
+    this.color = const Color(0xFF2196F3),
+    this.headers,
+  });
+}
+
+/// Callback when environment is selected
+typedef EnvironmentSelectedCallback = void Function(EnvironmentConfig config);
+
+/// NetworkInspector singleton with HTTP logging and environment switching
 class NetworkInspector {
   /// Singleton instance
   static final NetworkInspector _instance = NetworkInspector._internal();
@@ -98,13 +117,17 @@ class NetworkInspector {
 
   /// Overlay entry for floating circle
   static OverlayEntry? _circleOverlayEntry;
+  static final List<EnvironmentConfig> _environments = [];
+  static EnvironmentConfig? selectedEnvironment;
+  static EnvironmentSelectedCallback? onEnvironmentSelected;
 
-  /// Existing dependencies (private)
-  Database? _database;
-  LogDatasource? _logDatasource;
-  LogRepository? _logRepository;
-  LogHttpRequest? _logHttpRequest;
-  LogHttpResponse? _logHttpResponse;
+  static Database? _database;
+  static LogDatasource? _logDatasource;
+  static LogRepository? _logRepository;
+  static LogHttpRequest? _logHttpRequest;
+  static LogHttpResponse? _logHttpResponse;
+  /// Check if logging is enabled
+  static bool get isEnabled => _isEnabled;
 
   /// Enable logging and floating UI
   static void enable() {
@@ -119,13 +142,30 @@ class NetworkInspector {
     print('❌ NetworkInspector disabled');
   }
 
-  /// Check if logging is enabled
-  static bool get isEnabled => _isEnabled;
+  static List<EnvironmentConfig> get availableEnvironments =>
+      List.unmodifiable(_environments);
 
-  /// Initialize database and dependencies
-  static Future<void> initialize() async {
+  static Future<void> initializeWithEnvironments({
+    required List<EnvironmentConfig> environments,
+  }) async {
+    _environments.clear();
+    _environments.addAll(environments);
+    if (_environments.isNotEmpty) {
+      selectedEnvironment = _environments.first;
+    }
     await DatabaseHelper.initialize();
     await _instance._injectDependencies();
+    print('🌐 Initialized with ${_environments.length} environments');
+  }
+
+  static EnvironmentConfig? selectEnvironment(int index) {
+    if (index >= 0 && index < _environments.length) {
+      selectedEnvironment = _environments[index];
+      print('🔄 Selected: ${selectedEnvironment!.name}');
+      onEnvironmentSelected?.call(selectedEnvironment!);
+      return selectedEnvironment;
+    }
+    return null;
   }
 
   /// Inject all dependencies (called automatically during initialize)
@@ -165,25 +205,166 @@ class NetworkInspector {
 
     _circleOverlayEntry = OverlayEntry(
       builder: (overlayContext) => FloatingCircleWidget(
-        onActivityTap: () {
-          hideFloatingCircle();
+        onRequestsTap: () {
+          // hideFloatingCircle();
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => ActivityPage()),
           );
         },
+        onEnvironmentTap: () => _showEnvironmentPicker(context),
       ),
     );
 
     Overlay.of(context, rootOverlay: true)?.insert(_circleOverlayEntry!);
   }
 
-  /// Notify new network activity (call from interceptors)
+  static void _showEnvironmentPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: 350,
+        decoration: const BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: const Row(
+                children: [
+                  Icon(Icons.settings_ethernet, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text(
+                    'Select Environment',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selectedEnvironment != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      selectedEnvironment!.color.withOpacity(0.3),
+                      selectedEnvironment!.color.withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: selectedEnvironment!.color,
+                      radius: 16,
+                      child: const Icon(Icons.check, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedEnvironment!.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          selectedEnvironment!.baseUrl,
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: _environments.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, index) {
+                  final env = _environments[index];
+                  final isSelected = env == selectedEnvironment;
+                  return Material(
+                    color: env.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        selectEnvironment(index);
+                        Navigator.pop(ctx);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: env.color,
+                              radius: 16,
+                              child: Text(
+                                env.name.substring(0, 1).toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    env.name,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    env.baseUrl,
+                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   static void notifyActivity({
     required String title,
     required String message,
   }) {
-    // Implementation depends on your interceptor setup
-    // Typically shows floating circle when new activity detected
     print('📱 New activity: $title - $message');
   }
 }
