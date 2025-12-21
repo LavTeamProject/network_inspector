@@ -48,6 +48,7 @@ class DioInterceptor extends Interceptor {
     Response response,
     ResponseInterceptorHandler handler,
   ) async {
+    if (!NetworkInspector.isEnabled) return;
     if (logIsAllowed) {
       await saveResponse(response);
       await finishActivity(
@@ -64,6 +65,7 @@ class DioInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
+    if (!NetworkInspector.isEnabled) return;
     var logError = '\n[Error Message]: ${err.message}';
     if (logIsAllowed) {
       if (isConsoleLogAllowed) {
