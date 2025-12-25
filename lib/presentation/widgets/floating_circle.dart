@@ -32,7 +32,7 @@ class _FloatingCircleWidgetState extends State<FloatingCircleWidget> {
     final position = RelativeRect.fromLTRB(
       offset.dx + size.width,
       offset.dy,
-      offset.dx + size.width + 200,
+      offset.dx + size.width + 250,
       offset.dy + size.height,
     );
 
@@ -71,9 +71,49 @@ class _FloatingCircleWidgetState extends State<FloatingCircleWidget> {
               ],
             ),
           ),
+          PopupMenuItem(
+            value: 'touch_indicators',
+            child: Row(
+              children: [
+                Icon(
+                  NetworkInspector.showTouchIndicators
+                      ? Icons.touch_app
+                      : Icons.touch_app_outlined,
+                  color: NetworkInspector.showTouchIndicators
+                      ? Colors.purple
+                      : Colors.grey,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Touch Indicators',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: NetworkInspector.showTouchIndicators
+                            ? Colors.purple
+                            : Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      NetworkInspector.showTouchIndicators ? 'ON' : 'OFF',
+                      style: TextStyle(
+                        color: NetworkInspector.showTouchIndicators
+                            ? Colors.purple
+                            : Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           // const PopupMenuDivider(),
           // PopupMenuItem(
-          //   value: 'toggle',
+          //   value: 'toggle_logger',
           //   child: Row(
           //     children: [
           //       Icon(
@@ -104,7 +144,11 @@ class _FloatingCircleWidgetState extends State<FloatingCircleWidget> {
         case 'environment':
           widget.onEnvironmentTap?.call();
           break;
-        case 'toggle':
+        case 'touch_indicators':
+          NetworkInspector.toggleTouchIndicators();
+          setState(() {});
+          break;
+        case 'toggle_logger':
           NetworkInspector.isEnabled
               ? NetworkInspector.disable()
               : NetworkInspector.enable();
@@ -189,6 +233,26 @@ class _FloatingCircleWidgetState extends State<FloatingCircleWidget> {
                   ),
                 ],
               ),
+              if (NetworkInspector.showTouchIndicators)
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.5),
+                          blurRadius: 4,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Positioned(
                 bottom: 6,
                 right: 6,

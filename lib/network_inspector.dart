@@ -1,5 +1,9 @@
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 /// Import section
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
@@ -14,6 +18,7 @@ import 'infrastructure/datasources/log_datasource_impl.dart';
 import 'infrastructure/repositories/log_repository_impl.dart';
 import 'presentation/pages/activity_page.dart';
 import 'presentation/widgets/floating_circle.dart';
+import 'presentation/widgets/touch_indicator.dart';
 
 /// Export
 export 'presentation/pages/activity_page.dart';
@@ -129,17 +134,39 @@ class NetworkInspector {
   /// Check if logging is enabled
   static bool get isEnabled => _isEnabled;
 
+  /// State for touch indicators
+  static bool _showTouchIndicators = false;
+  static ValueChanged<bool>? _onTouchIndicatorsChanged;
+
+  /// Getter for touch indicators state
+  static bool get showTouchIndicators => _showTouchIndicators;
+
+  /// Set touch indicators state
+  static void setTouchIndicators(bool show) {
+    _showTouchIndicators = show;
+    _onTouchIndicatorsChanged?.call(show);
+  }
+
+  /// Subscribe to touch indicators changes
+  static void onTouchIndicatorsChanged(ValueChanged<bool> callback) {
+    _onTouchIndicatorsChanged = callback;
+  }
+
+  /// Toggle touch indicators
+  static void toggleTouchIndicators() {
+    setTouchIndicators(!_showTouchIndicators);
+  }
+
+
   /// Enable logging and floating UI
   static void enable() {
     _isEnabled = true;
-    print('✅ NetworkInspector enabled');
   }
 
   /// Disable logging and hide floating UI
   static void disable() {
     _isEnabled = false;
     hideFloatingCircle();
-    print('❌ NetworkInspector disabled');
   }
 
   static List<EnvironmentConfig> get availableEnvironments =>
@@ -206,7 +233,6 @@ class NetworkInspector {
     _circleOverlayEntry = OverlayEntry(
       builder: (overlayContext) => FloatingCircleWidget(
         onRequestsTap: () {
-          // hideFloatingCircle();
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => ActivityPage()),
           );

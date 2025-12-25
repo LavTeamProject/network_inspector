@@ -7,10 +7,19 @@ import 'common/notification_helper.dart';
 import 'presentation/controllers/main_provider.dart';
 import 'presentation/pages/main_page.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  NetworkInspector.initialize();
+  await NetworkInspector.initializeWithEnvironments(
+    environments: [
+      EnvironmentConfig(name: 'Stage', baseUrl: 'https://stage.api.com'),
+      EnvironmentConfig(name: 'Production', baseUrl: 'https://api.com'),
+    ],
+  );
   NotificationHelper.initialize();
+  // 2. Callback для обновления Dio
+  NetworkInspector.onEnvironmentSelected = (config) {
+    print("config11 $config");
+  };
   runApp(const ExampleApp());
 }
 
