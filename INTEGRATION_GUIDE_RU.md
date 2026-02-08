@@ -39,10 +39,8 @@ import 'package:network_inspector/network_inspector.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Базовая инициализация (обязательно)
-  await NetworkInspector.initialize();
-
-  // Или инициализация с конфигурацией окружений (опционально)
+  // Инициализация с конфигурацией окружений (обязательно)
+  // Если окружения не нужны, передайте пустой список
   await NetworkInspector.initializeWithEnvironments(
     environments: [
       EnvironmentConfig(
@@ -69,6 +67,8 @@ void main() async {
   runApp(const MyApp());
 }
 ```
+
+**Важно:** Метод `NetworkInspector.initialize()` отсутствует в текущей версии библиотеки. Используйте только `initializeWithEnvironments`. Если окружения не требуются, передайте пустой список `environments: []`.
 
 ---
 
@@ -135,8 +135,9 @@ Dio createDioClient(String baseUrl) {
       networkInspector: NetworkInspector.instance,
       onHttpFinish: (hashCode, title, message) {
         // Опциональный callback после завершения запроса
-        // Можно показать плавающий круг
-        NetworkInspector.showFloatingCircle(context);
+        // Для показа плавающего круга нужен BuildContext
+        // Например, можно сохранить контекст глобально или использовать NavigationService
+        // NetworkInspector.showFloatingCircle(context);
       },
     ),
   );
@@ -156,7 +157,7 @@ final response = await dio.get('/posts/1');
 
 ## 5. Интеграция с Chopper
 
-Chopper требует кодогенерации. Опишите API-сервис с аннотациями, затем создайте клиент с интерцептором `ChopperInterceptor`.
+Chopper требует кодогенерации. Опишите API-сервис с аннотациями, затем создайте клиент с интерцептором `PrettyChopperLogger`.
 
 ### 5.1. Определение сервиса (например, `json_placeholder_service.dart`):
 
@@ -187,7 +188,7 @@ ChopperClient createChopperClient(String baseUrl) {
   return ChopperClient(
     baseUrl: Uri.parse(baseUrl),
     interceptors: [
-      ChopperInterceptor(
+      PrettyChopperLogger(
         networkInspector: NetworkInspector.instance,
       ),
       HttpLoggingInterceptor(), // стандартный логгер Chopper
@@ -302,11 +303,6 @@ NetworkInspector.onEnvironmentSelected = (EnvironmentConfig config) {
 };
 ```
 
-### Очистка логов
-
-```dart
-await NetworkInspector.clearLogs();
-```
 
 ---
 
@@ -331,20 +327,23 @@ flutter run
 ## 10. Частые проблемы
 
 ### 1. Интерцептор не логирует запросы
-- Убедитесь, что вызваны `NetworkInspector.initialize()` и `NetworkInspector.enable()`.
-- Проверьте, что `logIsAllowed: true`.
+- Убедитесь, что вызваны `NetworkInspector.initializeWithEnvironments()` и `NetworkInspector.enable()`.
+- Проверьте, что `logIsAllowed: true` и `NetworkInspector.isEnabled` возвращает `true`.
 
 ### 2. Плавающий круг не появляется
 - Круг показывается после первого запроса или при вызове `NetworkInspector.showFloatingCircle(context)`.
-- Убедитесь, что в `onHttpFinish` передан корректный `BuildContext`.
+- Убедитесь, что в `onHttpFinish` передан корректный `BuildContext` (можно использовать `Navigator.of(context).rootNavigator.context`).
+- Проверьте, что `NetworkInspector.enable()` вызван до любого запроса.
 
 ### 3. Ошибки кодогенерации Chopper
 - Запустите `flutter pub run build_runner build --delete-conflicting-outputs`.
 - Убедитесь, что в `pubspec.yaml` добавлены `build_runner` и `chopper_generator` в `dev_dependencies`.
+- Проверьте, что все аннотации `@ChopperApi`, `@Get`, `@Post` импортированы из пакета `chopper`.
 
 ### 4. Не сохраняются логи в SQLite
 - Проверьте разрешения на запись в базу данных (на iOS/Android они есть по умолчанию).
 - Убедитесь, что не происходит исключений в интерцепторе.
+- Убедитесь, что `networkInspector` не `null` и передан в интерцептор.
 
 ---
 
