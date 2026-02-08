@@ -17,10 +17,10 @@ class DioInterceptor extends Interceptor {
   final bool isConsoleLogAllowed;
   final NetworkInspector? networkInspector;
   final Function(
-    int requestHashCode,
-    String title,
-    String message,
-  )? onHttpFinish;
+      int requestHashCode,
+      String title,
+      String message,
+      )? onHttpFinish;
 
   DioInterceptor({
     this.logIsAllowed = true,
@@ -34,9 +34,9 @@ class DioInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) async {
+      RequestOptions options,
+      RequestInterceptorHandler handler,
+      ) async {
     if (logIsAllowed) {
       await saveRequest(options);
     }
@@ -45,9 +45,9 @@ class DioInterceptor extends Interceptor {
 
   @override
   Future<void> onResponse(
-    Response response,
-    ResponseInterceptorHandler handler,
-  ) async {
+      Response response,
+      ResponseInterceptorHandler handler,
+      ) async {
     if (!NetworkInspector.isEnabled) return;
     if (logIsAllowed) {
       await saveResponse(response);
@@ -62,38 +62,111 @@ class DioInterceptor extends Interceptor {
 
   @override
   void onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) async {
+      DioException err,
+      ErrorInterceptorHandler handler,
+      ) async {
     if (!NetworkInspector.isEnabled) return;
     var logError = '\n[Error Message]: ${err.message}';
     if (logIsAllowed) {
       if (isConsoleLogAllowed) {
         developer.log(logError);
       }
-      if (err != null && err.response != null) {
+// Handling errors with response (HTTP errors: 4xx, 5xx)
+      if (err.response != null) {
         await saveResponse(err.response!);
         await finishActivity(
           err.response!,
           err.response!.requestOptions.uri.toString(),
-          err.response!.data.toString(),
+          err.response!.data?.toString() ?? 'No response data',
         );
-      } else {
-        var payload = HttpResponse();
-        await networkInspector!.writeHttpResponseLog(payload);
+      }
+// Handling errors without a response (timeouts, network errors)
+      else {
+        await _saveErrorResponse(err);
+        await _finishErrorActivity(err);
       }
     }
 
     var errorResponse = '\n[Error Response]'
-        '\nHeaders : ${err.response?.headers.toString()}'
-        '\nParams: ${err.response?.requestOptions.queryParameters.toString()}'
-        '\nData : ${_jsonUtil.encodeRawJson(err.response?.data)}'
+        '\nError Type: ${err.type}'
+        '\nRequest URL: ${err.requestOptions.uri}'
+        '\nRequest Method: ${err.requestOptions.method}'
+        '\nHeaders: ${err.response?.headers.toString() ?? err.requestOptions.headers.toString()}'
+        '\nParams: ${err.response?.requestOptions.queryParameters.toString() ?? err.requestOptions.queryParameters.toString()}'
+        '\nData: ${_jsonUtil.encodeRawJson(err.response?.data ?? err.requestOptions.data)}'
         '\nStacktrace: ${err.stackTrace.toString()}';
 
     if (logIsAllowed && isConsoleLogAllowed) {
       developer.log(errorResponse);
     }
     handler.next(err);
+  }
+
+  /// Saves error information (for cases without response)
+  Future<void> _saveErrorResponse(DioException err) async {
+    var request = err.requestOptions;
+    var payload = HttpResponse(
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      responseHeader: _jsonUtil.encodeRawJson(request.headers),
+      responseBody: _jsonUtil.encodeRawJson({
+        'error_type': err.type.name,
+        'error_message': err.message,
+        'error_stacktrace': err.stackTrace?.toString() ?? '',
+      }),
+      responseStatusCode: _getStatusCodeFromError(err),
+      responseStatusMessage: err.message ?? 'Unknown error',
+      responseSize: 0,
+      requestHashCode: request.hashCode,
+      cUrl: request.toCurlCmd(),
+    );
+    await networkInspector!.writeHttpResponseLog(payload);
+  }
+
+  /// Terminates activity for errors
+  Future<void> _finishErrorActivity(DioException err) async {
+    var request = err.requestOptions;
+    var title = request.uri.toString();
+    var message = 'Error: ${err.type.name} - ${err.message}';
+
+    if (onHttpFinish != null) {
+      await onHttpFinish!(request.hashCode, title, message);
+    }
+
+    if (isConsoleLogAllowed) {
+      await _logErrorRequest(request, err);
+    }
+  }
+
+  Future<void> _logErrorRequest(RequestOptions request, DioException err) async {
+    var logTemplate = '\n[Request url] ${request.uri.toString()}'
+        '\n[Request header] ${request.headers.toString()}'
+        '\n[Request param] ${request.queryParameters}'
+        '\n[Request body] ${_jsonUtil.encodeRawJson(request.data)}'
+        '\n[Request method] ${request.method}'
+        '\n[Error type] ${err.type.name}'
+        '\n[Error message] ${err.message}'
+        '\n[cUrl] ${request.toCurlCmd()}';
+    developer.log(logTemplate);
+  }
+
+  /// Determines the status code based on the error type
+  int _getStatusCodeFromError(DioException err) {
+    switch (err.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 408; // Request Timeout
+      case DioExceptionType.badCertificate:
+        return 495; // SSL Certificate Error
+      case DioExceptionType.badResponse:
+        return err.response?.statusCode ?? 400;
+      case DioExceptionType.cancel:
+        return 499; // Client Closed Request
+      case DioExceptionType.connectionError:
+        return 503; // Service Unavailable
+      case DioExceptionType.unknown:
+        return 500; // Internal Server Error
+    }
   }
 
   Future<void> logRequest(RequestOptions request) async {
@@ -146,12 +219,12 @@ class DioInterceptor extends Interceptor {
   }
 
   Future<void> finishActivity(
-    Response response,
-    String title,
-    String message,
-  ) async {
+      Response response,
+      String title,
+      String message,
+      ) async {
     var request = response.requestOptions;
-    if (onHttpFinish is Function) {
+    if (onHttpFinish != null) {
       await onHttpFinish!(response.requestOptions.hashCode, title, message);
     }
     if (isConsoleLogAllowed) {

@@ -23,28 +23,55 @@ import 'presentation/widgets/touch_indicator.dart';
 /// Export
 export 'presentation/pages/activity_page.dart';
 
-/// NetworkInspector is a singleton class that provides HTTP request/response logging
-/// functionality with an optional floating UI indicator.
+/// NetworkInspector is a comprehensive HTTP monitoring and debugging tool
+/// that provides real-time request/response logging, environment switching,
+/// and visual debugging capabilities for Flutter applications.
+///
+/// ## Features
+/// - **Real-time HTTP logging**: Capture all network requests and responses
+/// - **Multiple client support**: Works with Dio, Chopper, and standard HTTP client
+/// - **Environment management**: Switch between different API environments
+/// - **Visual debugging**: Floating draggable indicator with touch visualization
+/// - **SQLite storage**: Persistent storage of network logs for later inspection
+/// - **Clean architecture**: Built with domain-driven design principles
 ///
 /// ## Initialization
 /// Call during app startup to initialize the local SQLite database:
 /// ```dart
 /// await NetworkInspector.initialize();
+///
+/// // Or with environment configurations
+/// await NetworkInspector.initializeWithEnvironments(
+///   environments: [
+///     EnvironmentConfig(
+///       name: 'Development',
+///       baseUrl: 'https://dev-api.example.com',
+///       color: Colors.blue,
+///       headers: {'X-API-Key': 'dev-key'},
+///     ),
+///     EnvironmentConfig(
+///       name: 'Production',
+///       baseUrl: 'https://api.example.com',
+///       color: Colors.green,
+///       headers: {'X-API-Key': 'prod-key'},
+///     ),
+///   ],
+/// );
 /// ```
 ///
 /// ## Usage with Network Interceptors
-/// Pass the singleton instance to your Dio or Http interceptors:
+/// Pass the singleton instance to your HTTP client interceptors:
 ///
-/// **Dio Example:**
+/// ### **Dio Interceptor Example:**
 /// ```dart
-/// Dio(
+/// final dio = Dio(
 ///   BaseOptions(
-///     baseUrl: 'http://192.168.1.6:8000/',
-///     connectTimeout: 10 * 1000, // 10 second
+///     baseUrl: 'https://api.example.com',
+///     connectTimeout: const Duration(seconds: 10),
 ///     headers: {
 ///       'Content-type': 'application/json',
 ///       'Accept': 'application/json',
-///       'Authorization': 'Bearer i109gh23j9u1h3811io2n391'
+///       'Authorization': 'Bearer your-token-here'
 ///     },
 ///   ),
 /// )..interceptors.add(
@@ -52,18 +79,41 @@ export 'presentation/pages/activity_page.dart';
 ///     logIsAllowed: true,
 ///     networkInspector: NetworkInspector.instance,
 ///     onHttpFinish: (hashCode, title, message) {
+///       // Optional callback when request completes
 ///       NetworkInspector.notifyActivity(title: title, message: message);
 ///     },
 ///   ),
 /// );
 /// ```
 ///
-/// **Http Example:**
+/// ### **Chopper Interceptor Example:**
 /// ```dart
-/// HttpInterceptor(
+/// final chopper = ChopperClient(
+///   baseUrl: 'https://api.example.com',
+///   interceptors: [
+///     ChopperInterceptor(
+///       logIsAllowed: true,
+///       networkInspector: NetworkInspector.instance,
+///       onHttpFinish: (hashCode, title, message) {
+///         NetworkInspector.notifyActivity(title: title, message: message);
+///       },
+///     ),
+///     HttpLoggingInterceptor(),
+///   ],
+///   converter: const JsonConverter(),
+///   services: [
+///     // Your generated services here
+///     MyApiService.create(),
+///   ],
+/// );
+/// ```
+///
+/// ### **Standard HTTP Interceptor Example:**
+/// ```dart
+/// final client = HttpInterceptor(
 ///   logIsAllowed: true,
-///   client: client,
-///   baseUrl: Uri.parse('http://192.168.1.3:8000/'),
+///   client: http.Client(),
+///   baseUrl: Uri.parse('https://api.example.com'),
 ///   networkInspector: NetworkInspector.instance,
 ///   onHttpFinish: (hashCode, title, message) {
 ///     NetworkInspector.notifyActivity(title: title, message: message);
@@ -71,31 +121,108 @@ export 'presentation/pages/activity_page.dart';
 ///   headers: {
 ///     'Content-type': 'application/json',
 ///     'Accept': 'application/json',
-///     'Authorization': 'Bearer WEKLSSS'
+///     'Authorization': 'Bearer your-token-here'
 ///   },
 /// );
 /// ```
 ///
-/// ## Key Features
-/// - **Singleton pattern** with private constructor and factory
-/// - **Enable/Disable logging** globally with `enable()` / `disable()`
-/// - **Floating draggable circle** shows active requests and navigates to ActivityPage
-/// - **Conditional logging** - logs only when `isEnabled == true`
-/// - **Database initialization** and dependency injection handled automatically
+/// ## Environment Switching
+/// ```dart
+/// // Get available environments
+/// final environments = NetworkInspector.availableEnvironments;
+///
+/// // Switch to specific environment
+/// NetworkInspector.selectEnvironment(0);
+///
+/// // Listen for environment changes
+/// NetworkInspector.onEnvironmentSelected = (config) {
+///   print('Switched to ${config.name} environment');
+///   print('Base URL: ${config.baseUrl}');
+/// };
+/// ```
+///
+/// ## Touch Indicators (UI Debugging)
+/// ```dart
+/// // Enable/disable touch visualization
+/// NetworkInspector.setTouchIndicators(true);
+///
+/// // Toggle touch indicators
+/// NetworkInspector.toggleTouchIndicators();
+///
+/// // Check current state
+/// final showIndicators = NetworkInspector.showTouchIndicators;
+///
+/// // Listen for changes
+/// NetworkInspector.onTouchIndicatorsChanged = (show) {
+///   print('Touch indicators ${show ? 'enabled' : 'disabled'}');
+/// };
+/// ```
 ///
 /// ## Integration Steps
-/// 1. Call `NetworkInspector.initialize()` in your app's main() or initState()
-/// 2. Use `NetworkInspector.instance` in your network interceptors
-/// 3. Call `NetworkInspector.enable()` to activate logging + floating UI
-/// 4. Tap floating circle to view logged HTTP activities
-/// 5. Call `NetworkInspector.disable()` or `hideFloatingCircle()` when done
-/// Environment configuration model
+/// 1. **Initialize** during app startup:
+///    ```dart
+///    void main() async {
+///      WidgetsFlutterBinding.ensureInitialized();
+///      await NetworkInspector.initializeWithEnvironments(...);
+///      runApp(MyApp());
+///    }
+///    ```
+///
+/// 2. **Configure** your HTTP clients with interceptors
+///
+/// 3. **Enable** monitoring when needed:
+///    ```dart
+///    NetworkInspector.enable();  // Shows floating circle and starts logging
+///    ```
+///
+/// 4. **Access** logs via the floating circle or programmatically:
+///    ```dart
+///    // Show floating UI indicator
+///    NetworkInspector.showFloatingCircle(context);
+///
+///    // Navigate to activity page manually
+///    Navigator.push(context, MaterialPageRoute(
+///      builder: (_) => ActivityPage(),
+///    ));
+///    ```
+///
+/// 5. **Disable** when done:
+///    ```dart
+///    NetworkInspector.disable();  // Hides UI and stops logging
+///    ```
+///
+/// ## Key Benefits
+/// - **Non-intrusive**: Zero impact on production when disabled
+/// - **Cross-platform**: Works on iOS, Android, Web, and Desktop
+/// - **Performance optimized**: Async operations with minimal overhead
+/// - **Developer friendly**: Clean API with comprehensive documentation
+/// - **Extensible**: Easy to add custom interceptors and features
+///
+/// ## Debugging Tips
+/// - Use `NetworkInspector.notifyActivity()` to log custom events
+/// - Enable touch indicators to visualize user interactions
+/// - Switch environments without restarting the app
+/// - Inspect detailed request/response data in ActivityPage
+///
+/// @since 1.0.0
+/// @author Your Name
+/// @see [Dio](https://pub.dev/packages/dio)
+/// @see [Chopper](https://pub.dev/packages/chopper)
+/// @see [http](https://pub.dev/packages/http)
 class EnvironmentConfig {
+  /// Display name of the environment (e.g., "Development", "Staging", "Production")
   final String name;
+
+  /// Base URL for API requests in this environment
   final String baseUrl;
+
+  /// Color theme for this environment in UI elements
   final Color color;
+
+  /// Default headers to include with all requests in this environment
   final Map<String, String>? headers;
 
+  /// Creates a new environment configuration
   const EnvironmentConfig({
     required this.name,
     required this.baseUrl,
@@ -120,34 +247,60 @@ class NetworkInspector {
   /// Global logging state
   static bool _isEnabled = false;
 
-  /// Overlay entry for floating circle
+  /// Overlay entry for the floating circle UI indicator
   static OverlayEntry? _circleOverlayEntry;
+
+  /// List of available environments
   static final List<EnvironmentConfig> _environments = [];
+
+  /// Currently selected environment
   static EnvironmentConfig? selectedEnvironment;
+
+  /// Callback triggered when environment changes
   static EnvironmentSelectedCallback? onEnvironmentSelected;
 
+  /// Database instance for log storage
   static Database? _database;
+
+  /// Data source for log operations
   static LogDatasource? _logDatasource;
+
+  /// Repository for log business logic
   static LogRepository? _logRepository;
+
+  /// Use case for logging HTTP requests
   static LogHttpRequest? _logHttpRequest;
+
+  /// Use case for logging HTTP responses
   static LogHttpResponse? _logHttpResponse;
-  /// Check if logging is enabled
+
+  /// Check if logging is currently enabled
+  ///
+  /// Returns `true` if NetworkInspector is actively monitoring network activity
   static bool get isEnabled => _isEnabled;
 
-  /// State for touch indicators
+  /// State for touch indicators visibility
   static bool _showTouchIndicators = false;
+
+  /// Callback for touch indicators state changes
   static ValueChanged<bool>? _onTouchIndicatorsChanged;
 
-  /// Getter for touch indicators state
+  /// Get current touch indicators state
+  ///
+  /// Returns `true` if touch visualization is currently enabled
   static bool get showTouchIndicators => _showTouchIndicators;
 
-  /// Set touch indicators state
+  /// Set touch indicators visibility
+  ///
+  /// @param show Whether to show touch indicators
   static void setTouchIndicators(bool show) {
     _showTouchIndicators = show;
     _onTouchIndicatorsChanged?.call(show);
   }
 
-  /// Subscribe to touch indicators changes
+  /// Subscribe to touch indicators state changes
+  ///
+  /// @param callback Function called when touch indicators state changes
   static void onTouchIndicatorsChanged(ValueChanged<bool> callback) {
     _onTouchIndicatorsChanged = callback;
   }
@@ -157,21 +310,35 @@ class NetworkInspector {
     setTouchIndicators(!_showTouchIndicators);
   }
 
-
-  /// Enable logging and floating UI
+  /// Enable network monitoring and floating UI
+  ///
+  /// Call this method to start logging network activity and show the
+  /// floating circle indicator. This should be called after initialization
+  /// and when you want to begin monitoring.
   static void enable() {
     _isEnabled = true;
   }
 
-  /// Disable logging and hide floating UI
+  /// Disable network monitoring and hide floating UI
+  ///
+  /// Call this method to stop logging network activity and hide the
+  /// floating circle indicator. This is useful for production builds
+  /// or when debugging is complete.
   static void disable() {
     _isEnabled = false;
     hideFloatingCircle();
   }
 
+  /// Get list of available environments
+  ///
+  /// Returns an unmodifiable list of all configured environments
   static List<EnvironmentConfig> get availableEnvironments =>
       List.unmodifiable(_environments);
 
+  /// Initialize NetworkInspector with environment configurations
+  ///
+  /// @param environments List of environment configurations
+  /// @throws Exception if database initialization fails
   static Future<void> initializeWithEnvironments({
     required List<EnvironmentConfig> environments,
   }) async {
@@ -182,20 +349,28 @@ class NetworkInspector {
     }
     await DatabaseHelper.initialize();
     await _instance._injectDependencies();
-    print('🌐 Initialized with ${_environments.length} environments');
+    print('🌐 NetworkInspector initialized with ${_environments.length} environments');
   }
 
+  /// Select a specific environment by index
+  ///
+  /// @param index Zero-based index of the environment to select
+  /// @returns The selected EnvironmentConfig or null if index is invalid
+  /// @triggers onEnvironmentSelected callback if set
   static EnvironmentConfig? selectEnvironment(int index) {
     if (index >= 0 && index < _environments.length) {
       selectedEnvironment = _environments[index];
-      print('🔄 Selected: ${selectedEnvironment!.name}');
+      print('🔄 Switched to environment: ${selectedEnvironment!.name}');
       onEnvironmentSelected?.call(selectedEnvironment!);
       return selectedEnvironment;
     }
     return null;
   }
 
-  /// Inject all dependencies (called automatically during initialize)
+  /// Inject all dependencies (called automatically during initialization)
+  ///
+  /// Sets up the complete dependency chain following Clean Architecture:
+  /// Database → Datasource → Repository → Use Cases
   Future<void> _injectDependencies() async {
     _database = await DatabaseHelper.connect();
     _logDatasource = LogDatasourceImpl(database: _database!);
@@ -204,28 +379,43 @@ class NetworkInspector {
     _logHttpResponse = LogHttpResponse(logRepository: _logRepository!);
   }
 
-  /// Log HTTP request (only if enabled)
+  /// Log an HTTP request
+  ///
+  /// @param param HTTP request data to log
+  /// @returns Future<bool?> indicating success (true) or null if logging disabled
+  /// @note Only logs if NetworkInspector is enabled via `enable()`
   Future<bool?> writeHttpRequestLog(HttpRequest param) async {
     if (!_isEnabled) return null;
     return await _logHttpRequest?.execute(param);
   }
 
-  /// Log HTTP response (only if enabled)
+  /// Log an HTTP response
+  ///
+  /// @param param HTTP response data to log
+  /// @returns Future<bool?> indicating success (true) or null if logging disabled
+  /// @note Only logs if NetworkInspector is enabled via `enable()`
   Future<bool?> writeHttpResponseLog(HttpResponse param) async {
     if (!_isEnabled) return null;
     return await _logHttpResponse?.execute(param);
   }
 
-  /// Hide floating activity indicator
+  /// Hide the floating circle UI indicator
+  ///
+  /// Removes the floating circle from the overlay if it's currently visible.
+  /// Called automatically by `disable()` but can be called separately if needed.
   static void hideFloatingCircle() {
     _circleOverlayEntry?.remove();
     _circleOverlayEntry = null;
   }
 
-  /// Show draggable floating circle (call from interceptor on activity)
+  /// Show draggable floating circle UI indicator
+  ///
+  /// @param context BuildContext to attach the overlay to
+  /// @note Only shows if logging is enabled via `enable()`
+  /// @note Won't show if already visible
   static void showFloatingCircle(BuildContext context) {
     if (!_isEnabled) {
-      print('⚠️ Logger disabled, circle not shown');
+      print('⚠️ NetworkInspector is disabled, floating circle not shown');
       return;
     }
     if (_circleOverlayEntry != null) return;
@@ -244,6 +434,7 @@ class NetworkInspector {
     Overlay.of(context, rootOverlay: true)?.insert(_circleOverlayEntry!);
   }
 
+  /// Display environment selection picker
   static void _showEnvironmentPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -387,10 +578,15 @@ class NetworkInspector {
     );
   }
 
+  /// Notify about custom activity (for integration with other systems)
+  ///
+  /// @param title Brief title of the activity
+  /// @param message Detailed description of the activity
+  /// @note This is primarily for logging and debugging purposes
   static void notifyActivity({
     required String title,
     required String message,
   }) {
-    print('📱 New activity: $title - $message');
+    print('📱 Network activity: $title - $message');
   }
 }

@@ -20,43 +20,66 @@ class LogRepositoryImpl implements LogRepository {
     int? startDate,
     int? endDate,
     List<int?>? statusCodes,
+    List<String>? baseUrls,
+    List<String>? paths,
+    List<String>? methods,
     String? url,
   }) async {
-    var models = await logDatasource.httpActivities(
-      url: url,
-      startDate: startDate,
-      statusCodes: statusCodes,
-      endDate: endDate,
-    );
-    var entities = (models != null)
-        ? List<HttpActivity>.from(
-            models.map(
-              (model) => HttpActivityMapper.toEntity(
-                model,
-              ),
-            ),
-          )
-        : null;
-    return entities;
+    try {
+      final result = await logDatasource.httpActivities(
+        startDate: startDate,
+        endDate: endDate,
+        statusCodes: statusCodes,
+        baseUrls: baseUrls,
+        paths: paths,
+        methods: methods,
+        url: url,
+      );
+
+      if (result == null) {
+        return null;
+      }
+
+      var entities = List<HttpActivity>.from(
+        result.map(
+              (model) {
+            return HttpActivityMapper.toEntity(model);
+          },
+        ),
+      );
+
+      return entities;
+    } catch (e, stackTrace) {
+      print('🔴 Error in httpActivities: $e');
+      print('🔴 Stack trace: $stackTrace');
+      return null;
+    }
   }
 
   @override
   Future<List<HttpRequest>?> httpRequests({
     int? requestHashCode,
   }) async {
-    var models = await logDatasource.httpRequests(
-      requestHashCode: requestHashCode,
-    );
-    var entities = (models != null)
-        ? List<HttpRequest>.from(
-            models.map(
-              (model) => HttpRequestMapper.toEntity(
-                model,
-              ),
-            ),
-          )
-        : null;
-    return entities;
+    try {
+      var models = await logDatasource.httpRequests(
+        requestHashCode: requestHashCode,
+      );
+
+      var entities = (models != null)
+          ? List<HttpRequest>.from(
+        models.map(
+              (model) {
+            return HttpRequestMapper.toEntity(model);
+          },
+        ),
+      )
+          : null;
+
+      return entities;
+    } catch (e) {
+      print('🔴 Error in httpRequests: $e');
+      return null;
+    }
   }
 
   @override
@@ -82,22 +105,44 @@ class LogRepositoryImpl implements LogRepository {
   Future<bool> logHttpRequest({
     required HttpRequest httpRequestModel,
   }) async {
-    var model = HttpRequestMapper.toModel(httpRequestModel);
-    var result = await logDatasource.logHttpRequest(
-      httpRequestModel: model,
-    );
-    return result;
+    try {
+      var model = HttpRequestMapper.toModel(httpRequestModel);
+
+      var result = await logDatasource.logHttpRequest(
+        httpRequestModel: model,
+      );
+
+      return result;
+    } catch (e, stackTrace) {
+      print('🔴 Error in logHttpRequest: $e');
+      print('🔴 Stack trace: $stackTrace');
+      return false;
+    }
   }
+
 
   @override
   Future<bool> logHttpResponse({
     required HttpResponse httpResponseModel,
   }) async {
-    var model = HttpResponseMapper.toModel(httpResponseModel);
-    var result = await logDatasource.logHttpResponse(
-      httpResponseModel: model,
-    );
-    return result;
+    try {
+      var model = HttpResponseMapper.toModel(httpResponseModel);
+      var result = await logDatasource.logHttpResponse(
+        httpResponseModel: model,
+      );
+
+      // После сохранения ответа, проверим, есть ли связанный запрос
+      final relatedRequests = await httpRequests(
+          requestHashCode: httpResponseModel.requestHashCode
+      );
+      print('💾 Related requests found: ${relatedRequests?.length ?? 0}');
+
+      return result;
+    } catch (e, stackTrace) {
+      print('🔴 Error in logHttpResponse: $e');
+      print('🔴 Stack trace: $stackTrace');
+      return false;
+    }
   }
 
   @override

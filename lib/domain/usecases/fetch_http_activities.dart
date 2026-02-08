@@ -16,10 +16,10 @@ class FetchHttpActivities
   @override
   Future<List<HttpActivity>?> build(FetchHttpActivitiesParam? param) async {
     var result = await logRepository.httpActivities(
-      url: param?.url,
-      startDate: param?.startDate,
       statusCodes: param?.statusCodes,
-      endDate: param?.endDate,
+      baseUrls: param?.baseUrls,
+      paths: param?.paths,
+      methods: param?.methods,
     );
     return result;
   }
@@ -36,15 +36,15 @@ class FetchHttpActivities
 }
 
 class FetchHttpActivitiesParam {
-  int? startDate;
-  int? endDate;
-  List<int?>? statusCodes;
-  String? url;
+  final List<int?>? statusCodes;
+  final List<String>? baseUrls;
+  final List<String>? paths;
+  final List<String>? methods;
 
   FetchHttpActivitiesParam({
-    this.url,
-    this.startDate,
     this.statusCodes,
-    this.endDate,
+    this.baseUrls,
+    this.paths,
+    this.methods,
   });
 }

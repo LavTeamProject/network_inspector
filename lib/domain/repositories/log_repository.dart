@@ -8,6 +8,9 @@ abstract class LogRepository {
     int? startDate,
     int? endDate,
     List<int?>? statusCodes,
+    List<String>? baseUrls,
+    List<String>? paths,
+    List<String>? methods,
     String? url,
   });
 

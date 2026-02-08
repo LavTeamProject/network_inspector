@@ -10,6 +10,7 @@ import '../../common/widgets/bottom_sheet.dart';
 import '../../const/network_inspector_value.dart';
 import '../../domain/entities/http_activity.dart';
 import '../../domain/entities/http_request.dart';
+import '../controllers/activity_filter_provider.dart';
 import '../controllers/activity_provider.dart';
 import '../widgets/container_label.dart';
 import '../widgets/filter_bottom_sheet_content.dart';
@@ -35,34 +36,36 @@ class ActivityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ActivityProvider>(
-      create: (context) => ActivityProvider(
-        context: context,
-      ),
-      builder: (context, child) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Http Activities'),
-          actions: [
-            IconButton(
-              onPressed: () {
-                onTapFilterIcon(context);
-              },
-              icon: const Icon(
-                Icons.filter_list_alt,
-              ),
+      create: (context) =>
+          ActivityProvider(
+            context: context,
+          ),
+      builder: (context, child) =>
+          Scaffold(
+            appBar: AppBar(
+              title: const Text('Http Activities'),
+              actions: [
+                IconButton(
+                  onPressed: () {
+                    onTapFilterIcon(context);
+                  },
+                  icon: const Icon(
+                    Icons.filter_list_alt,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    final provider = context.read<ActivityProvider>();
+                    provider.deleteActivities();
+                  },
+                  icon: const Icon(
+                    Icons.delete,
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              onPressed: () {
-                final provider = context.read<ActivityProvider>();
-                provider.deleteActivities();
-              },
-              icon: const Icon(
-                Icons.delete,
-              ),
-            ),
-          ],
-        ),
-        body: buildBody(context),
-      ),
+            body: buildBody(context),
+          ),
     );
   }
 
@@ -90,10 +93,8 @@ class ActivityPage extends StatelessWidget {
     );
   }
 
-  Widget successBody(
-    BuildContext context,
-    List<HttpActivity>? data,
-  ) {
+  Widget successBody(BuildContext context,
+      List<HttpActivity>? data,) {
     return Visibility(
       visible: data?.isNotEmpty ?? false,
       replacement: emptyBody(context),
@@ -105,7 +106,10 @@ class ActivityPage extends StatelessWidget {
     return Center(
       child: Text(
         'There is no log, try to fetch something !',
-        style: Theme.of(context).textTheme.bodyLarge,
+        style: Theme
+            .of(context)
+            .textTheme
+            .bodyLarge,
       ),
     );
   }
@@ -114,7 +118,10 @@ class ActivityPage extends StatelessWidget {
     return Center(
       child: Text(
         'Log has error $error',
-        style: Theme.of(context).textTheme.bodyLarge,
+        style: Theme
+            .of(context)
+            .textTheme
+            .bodyLarge,
       ),
     );
   }
@@ -129,31 +136,31 @@ class ActivityPage extends StatelessWidget {
     return Center(
       child: Text(
         'Please wait',
-        style: Theme.of(context).textTheme.bodyLarge,
+        style: Theme
+            .of(context)
+            .textTheme
+            .bodyLarge,
       ),
     );
   }
 
-  Widget activityList(
-    BuildContext context,
-    List<HttpActivity>? data,
-  ) {
+  Widget activityList(BuildContext context,
+      List<HttpActivity>? data,) {
     return ListView.separated(
       itemCount: data?.length ?? 0,
       separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) => activityTile(
-        context,
-        data![index],
-        index,
-      ),
+      itemBuilder: (context, index) =>
+          activityTile(
+            context,
+            data![index],
+            index,
+          ),
     );
   }
 
-  Widget activityTile(
-      BuildContext context,
+  Widget activityTile(BuildContext context,
       HttpActivity activity,
-      int index,
-      ) {
+      int index,) {
     final theme = Theme.of(context);
 
     return InkWell(
@@ -165,12 +172,14 @@ class ActivityPage extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             /// LEFT COLUMN
             SizedBox(
               width: 72,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   /// METHOD
                   Text(
                     activity.request?.method ?? '-',
@@ -209,6 +218,7 @@ class ActivityPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   /// DATE | SIZE
                   Text(
                     '${activity.request?.createdAt?.convertToYmdHms ?? '-'}'
@@ -225,7 +235,7 @@ class ActivityPage extends StatelessWidget {
 
                   /// FULL URL
                   Text(
-                    buildFullUrl(activity.request),
+                    activity.request?.fullUrl ?? '',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium,
@@ -239,47 +249,79 @@ class ActivityPage extends StatelessWidget {
     );
   }
 
-  String buildFullUrl(HttpRequest? request) {
-    if (request == null) return '-';
-
-    final buffer = StringBuffer();
-
-    if (request.baseUrl != null) {
-      buffer.write(request.baseUrl);
-    }
-
-    if (request.path != null) {
-      buffer.write(request.path);
-    }
-
-    if (request.params != null && request.params!.isNotEmpty) {
-      buffer.write('?${request.params}');
-    }
-
-    return buffer.toString();
-  }
-
   void onTapFilterIcon(BuildContext context) {
-    final provider = context.read<ActivityProvider>();
+    final activityProvider = context.read<ActivityProvider>();
+
+    // Всегда показываем все доступные фильтры
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
-        return BottomSheetTemplate(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-            ),
-            child: FilterBottomSheetContent(
-              responseStatusCodes: provider.statusCodes,
-              onTapApplyFilter: (list) {
-                Navigator.pop(context);
-                provider.filterHttpActivities(list);
-              },
-              provider: provider.filterProvider!,
-            ),
-          ),
+        // Создаем локальный провайдер фильтров
+        final filterProvider = ActivityFilterProvider();
+
+        // Восстанавливаем выбранные фильтры, если они есть
+        if (activityProvider.filterProvider != null) {
+          _restoreFilters(activityProvider.filterProvider!, filterProvider);
+        }
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return BottomSheetTemplate(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FilterBottomSheetContent(
+                  // Показываем ВСЕ доступные фильтры
+                  responseStatusCodes: activityProvider.allStatusCodes,
+                  baseUrls: activityProvider.allBaseUrls,
+                  paths: activityProvider.allPaths,
+                  methods: activityProvider.allMethods,
+                  onTapApplyFilter: (statusCodes,
+                      baseUrls,
+                      paths,
+                      methods,) {
+                    // Сохраняем выбранные фильтры
+                    activityProvider.filterProvider = filterProvider;
+
+                    Navigator.pop(context);
+                    activityProvider.filterHttpActivities(
+                      statusCodes: statusCodes,
+                      baseUrls: baseUrls,
+                      paths: paths,
+                      methods: methods,
+                    );
+                  },
+                  provider: filterProvider,
+                ),
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+// Вспомогательный метод для восстановления фильтров
+  void _restoreFilters(ActivityFilterProvider source,
+      ActivityFilterProvider target) {
+    // Копируем выбранные статус коды
+    for (final code in source.selectedStatusCodes) {
+      target.selectedStatusCodes.add(code);
+    }
+
+    // Копируем выбранные базовые URL
+    for (final url in source.selectedBaseUrls) {
+      target.selectedBaseUrls.add(url);
+    }
+
+    // Копируем выбранные пути
+    for (final path in source.selectedPaths) {
+      target.selectedPaths.add(path);
+    }
+
+    // Копируем выбранные методы
+    for (final method in source.selectedMethods) {
+      target.selectedMethods.add(method);
+    }
   }
 }

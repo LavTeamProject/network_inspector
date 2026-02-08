@@ -50,13 +50,12 @@ class ContentContainer extends StatelessWidget {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Text(
+              child:
+                Text(
+                  maxLines: null,
                   processedContent,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              ),
             ),
           ),
         ),
