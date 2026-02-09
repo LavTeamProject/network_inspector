@@ -55,7 +55,6 @@ class _DioDemoScreenState extends State<DioDemoScreen> {
         logIsAllowed: true,
         networkInspector: NetworkInspector.instance,
         onHttpFinish: (hashCode, title, message) {
-          NetworkInspector.showFloatingCircle(context);
         },
       ),
     );

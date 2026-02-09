@@ -327,10 +327,10 @@ class NetworkInspector {
   /// Call this method to stop logging network activity and hide the
   /// floating circle indicator. This is useful for production builds
   /// or when debugging is complete.
-  static void disable() {
-    _isEnabled = false;
-    hideFloatingCircle();
-  }
+  // static void disable() {
+  //   _isEnabled = false;
+  //   hideFloatingCircle();
+  // }
 
   /// Get list of available environments
   ///
@@ -406,36 +406,36 @@ class NetworkInspector {
   ///
   /// Removes the floating circle from the overlay if it's currently visible.
   /// Called automatically by `disable()` but can be called separately if needed.
-  static void hideFloatingCircle() {
-    _circleOverlayEntry?.remove();
-    _circleOverlayEntry = null;
-  }
+  // static void hideFloatingCircle() {
+  //   _circleOverlayEntry?.remove();
+  //   _circleOverlayEntry = null;
+  // }
 
   /// Show draggable floating circle UI indicator
   ///
   /// @param context BuildContext to attach the overlay to
   /// @note Only shows if logging is enabled via `enable()`
   /// @note Won't show if already visible
-  static void showFloatingCircle(BuildContext context) {
-    if (!_isEnabled) {
-      print('⚠️ NetworkInspector is disabled, floating circle not shown');
-      return;
-    }
-    if (_circleOverlayEntry != null) return;
-
-    _circleOverlayEntry = OverlayEntry(
-      builder: (overlayContext) => FloatingCircleWidget(
-        onRequestsTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ActivityPage()),
-          );
-        },
-        onEnvironmentTap: () => _showEnvironmentPicker(context),
-      ),
-    );
-
-    Overlay.of(context, rootOverlay: true)?.insert(_circleOverlayEntry!);
-  }
+  // static void showFloatingCircle(BuildContext context) {
+  //   if (!_isEnabled) {
+  //     print('⚠️ NetworkInspector is disabled, floating circle not shown');
+  //     return;
+  //   }
+  //   if (_circleOverlayEntry != null) return;
+  //
+  //   _circleOverlayEntry = OverlayEntry(
+  //     builder: (overlayContext) => FloatingCircleWidget(
+  //       onRequestsTap: () {
+  //         Navigator.of(context).push(
+  //           MaterialPageRoute(builder: (_) => ActivityPage()),
+  //         );
+  //       },
+  //       onEnvironmentTap: () => _showEnvironmentPicker(context),
+  //     ),
+  //   );
+  //
+  //   Overlay.of(context, rootOverlay: true)?.insert(_circleOverlayEntry!);
+  // }
 
   /// Display environment selection picker
   static void _showEnvironmentPicker(BuildContext context) {

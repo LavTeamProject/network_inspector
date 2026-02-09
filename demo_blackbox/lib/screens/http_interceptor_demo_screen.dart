@@ -47,7 +47,6 @@ class _HttpInterceptorDemoScreenState extends State<HttpInterceptorDemoScreen> {
       baseUrl: Uri.parse(_currentEnv.baseUrl),
       networkInspector: NetworkInspector.instance,
       onHttpFinish: (hashCode, title, message) {
-        NetworkInspector.showFloatingCircle(context);
       },
       headers: {
         'Content-Type': 'application/json',
@@ -203,7 +202,6 @@ class _HttpInterceptorDemoScreenState extends State<HttpInterceptorDemoScreen> {
         baseUrl: Uri.parse(env.baseUrl),
         networkInspector: NetworkInspector.instance,
         onHttpFinish: (hashCode, title, message) {
-          NetworkInspector.showFloatingCircle(context);
         },
         headers: {
           'Content-Type': 'application/json',

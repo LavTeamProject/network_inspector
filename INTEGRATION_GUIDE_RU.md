@@ -134,10 +134,6 @@ Dio createDioClient(String baseUrl) {
       isConsoleLogAllowed: true,     // вывод в консоль
       networkInspector: NetworkInspector.instance,
       onHttpFinish: (hashCode, title, message) {
-        // Опциональный callback после завершения запроса
-        // Для показа плавающего круга нужен BuildContext
-        // Например, можно сохранить контекст глобально или использовать NavigationService
-        // NetworkInspector.showFloatingCircle(context);
       },
     ),
   );
