@@ -43,7 +43,6 @@ class _ClientSelectionScreenState extends State<ClientSelectionScreen> {
 
 
   void _navigateToDemoScreen() {
-    NetworkInspector.showFloatingCircle(context);
     if (_selectedClient == null) return;
 
     final route = MaterialPageRoute(

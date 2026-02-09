@@ -1,7 +1,10 @@
 import 'package:demo_blackbox/screens/client_selection_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:network_inspector/common/navigation_service.dart';
 import 'package:network_inspector/common/utils/dio_interceptor.dart';
 import 'package:network_inspector/network_inspector.dart';
+import 'package:network_inspector/network_inspector_config.dart';
+import 'package:network_inspector/presentation/widgets/floating_test_button.dart';
 import 'package:network_inspector/presentation/widgets/touch_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'common/enums.dart';
@@ -104,8 +107,16 @@ void main() async {
 
   // ✅ Step 2: Initialize NetworkInspector with all available environments
   // This makes all app environments available in the NetworkInspector UI
+  // await NetworkInspector.initialize();
   await NetworkInspector.initializeWithEnvironments(
     environments: AppEnvironment.allConfigs,
+  );
+
+  // Enable the floating test button with custom configuration
+  NetworkInspectorConfig.enableTestButton(
+    alignment: Alignment.bottomRight,
+    margin: 20.0,
+    customButton: const Icon(Icons.bug_report_sharp, color: Colors.white),
   );
 
   // ✅ Step 3: Sync app environment → NetworkInspector
@@ -173,15 +184,24 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       title: 'HTTP Client Demo',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       // Wrap entire app with TouchIndicator for visual debugging
-      builder: (context, child) => TouchIndicator(child: child!),
-      home: const ClientSelectionScreen(),
+      // and NetworkInspectorOverlay to keep floating button on all screens
+      builder: (context, child) {
+        return NetworkInspectorOverlay(
+          child: TouchIndicator(child: child!),
+        );
+      },
+      // home: const ClientSelectionScreen(),
       debugShowCheckedModeBanner: false,
+      home: const ClientSelectionScreen(),
+      // home: const NetworkInspectorOverlay(child: ClientSelectionScreen()),
+
     );
   }
 }
